@@ -13,7 +13,7 @@ func main() {
 	log.Println("Starting hub server...")
 	go hub.Run()
 	// create a websocker object
-	ws := websocket.NewWs(hub, "client1")
+	ws := websocket.NewWs(hub)
 	// start the websocket server
 	ws.StartWebSocketServer()
 

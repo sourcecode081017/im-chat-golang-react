@@ -8,14 +8,12 @@ import (
 )
 
 type Ws struct {
-	wsHub    *Hub
-	clientId string
+	wsHub *Hub
 }
 
-func NewWs(hub *Hub, clientId string) *Ws {
+func NewWs(hub *Hub) *Ws {
 	return &Ws{
-		wsHub:    hub,
-		clientId: clientId,
+		wsHub: hub,
 	}
 }
 
@@ -23,7 +21,7 @@ func (ws *Ws) StartWebSocketServer() {
 	// Initialize a http server using net/http
 	router := gin.Default()
 	// upgrade the http connection request to a websocket connection
-	router.GET("/connect", ws.serveWebsocket)
+	router.GET("/connect/:clientId", ws.serveWebsocket)
 	// Start the server on port 8080
 	if err := router.Run(":8080"); err != nil {
 		panic("Failed to start WebSocket server: " + err.Error())
@@ -34,6 +32,7 @@ func (ws *Ws) StartWebSocketServer() {
 
 // serveWebsocket handles the WebSocket connection
 func (ws *Ws) serveWebsocket(c *gin.Context) {
+	clientId := c.Param("clientId")
 	upgrader := &websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -47,12 +46,12 @@ func (ws *Ws) serveWebsocket(c *gin.Context) {
 	// create a
 
 	// Create a new client
-	client := NewClient(ws.clientId, conn, ws.wsHub)
+	client := NewClient(clientId, conn, ws.wsHub)
 	client.hub.register <- client
 	// Start the read and write pumps
 	go client.ReadPump()
 
 	go client.WritePump()
 
-	defer conn.Close()
+	//defer conn.Close()
 }
