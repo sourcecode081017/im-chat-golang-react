@@ -50,13 +50,3 @@ func (c *Client) WritePump() {
 	}
 	c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 }
-
-func (c *Client) SendMessage(message []byte) {
-	c.send <- message
-}
-
-func (c *Client) Close() {
-	c.hub.unregister <- c
-	close(c.send)
-	c.conn.Close()
-}
