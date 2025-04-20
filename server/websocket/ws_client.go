@@ -38,7 +38,7 @@ func (c *Client) ReadPump() {
 			}
 			break
 		}
-		// mar
+
 		msgJSON, err := json.Marshal(msg)
 		if err != nil {
 			log.Printf("error: %v", err)

@@ -22,6 +22,7 @@ func NewHub() *Hub {
 		unregister: make(chan *Client),
 	}
 }
+
 func (h *Hub) Run() {
 	for {
 		select {
@@ -41,7 +42,6 @@ func (h *Hub) Run() {
 				log.Printf("error: %v", err)
 				continue
 			}
-			// for one on one chat
 			for id, client := range h.clients {
 				if msg.RecipientId != "" && msg.RecipientId != id {
 					continue
