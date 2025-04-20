@@ -1,9 +1,11 @@
 package websocket
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/gorilla/websocket"
+	"github.com/sourcecode081017/im-chat-golang-react/models"
 )
 
 type Client struct {
@@ -28,35 +30,31 @@ func (c *Client) ReadPump() {
 		c.conn.Close()
 	}()
 	for {
-		_, message, err := c.conn.ReadMessage()
+		var msg *models.Message
+		err := c.conn.ReadJSON(&msg)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
 			break
 		}
-		c.hub.broadcast <- message
+
+		msgJSON, err := json.Marshal(msg)
+		if err != nil {
+			log.Printf("error: %v", err)
+			break
+		}
+		c.hub.broadcast <- msgJSON
 	}
 }
 
 func (c *Client) WritePump() {
 	defer c.conn.Close()
 	for message := range c.send {
-		w, err := c.conn.NextWriter(websocket.TextMessage)
+		err := c.conn.WriteMessage(websocket.TextMessage, message)
 		if err != nil {
 			return
 		}
-		w.Write(message)
 	}
 	c.conn.WriteMessage(websocket.CloseMessage, []byte{})
-}
-
-func (c *Client) SendMessage(message []byte) {
-	c.send <- message
-}
-
-func (c *Client) Close() {
-	c.hub.unregister <- c
-	close(c.send)
-	c.conn.Close()
 }
