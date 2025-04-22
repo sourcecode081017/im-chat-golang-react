@@ -5,7 +5,7 @@ services:
     container_name: im-chat-postgres
     image: postgres:latest
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
@@ -18,12 +18,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: on-failure
     ports:
       - "8081:8080"
     depends_on:
       - im-chat-app-postgres
-    environment:
-      DATABASE_URL: postgres://postgres:password@im-chat-app-postgres:5432/im_chat_app
+    env_file:
+      - .env
     networks:
       - im-chat-network
 
