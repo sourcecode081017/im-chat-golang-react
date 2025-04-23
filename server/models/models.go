@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Message struct {
@@ -21,8 +22,10 @@ type Channel struct {
 	Subscribers []User    `json:"subscribers"`
 }
 type User struct {
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
+	gorm.Model
+	Username  string    `json:"username" gorm:"unique; not null"`
+	UserUUID  uuid.UUID `json:"userId" gorm:"type:uuid; unique; not null"`
+	Email     *string   `json:"email"`
+	FirstName *string   `json:"firstName"`
+	LastName  *string   `json:"lastName"`
 }

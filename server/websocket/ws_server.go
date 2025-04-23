@@ -1,9 +1,11 @@
 package websocket
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sourcecode081017/im-chat-golang-react/db/postgres"
 	"github.com/sourcecode081017/im-chat-golang-react/models"
@@ -61,6 +63,7 @@ func (ws *Ws) createUser(c *gin.Context) {
 		return
 	}
 	// Create the user in the database
+	user.UserId = uuid.New()
 	if err := ws.pgDb.CreateUser(c, &user); err != nil {
 		c.JSON(500, gin.H{
 			"error": "Failed to create user",
@@ -68,7 +71,7 @@ func (ws *Ws) createUser(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{
-		"message": "User created successfully",
+		"message": fmt.Sprintf("User %s created successfully", user.Username),
 	})
 }
 
