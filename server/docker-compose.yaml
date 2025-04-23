@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  im-chat-app-postgres:
+    container_name: im-chat-postgres
+    image: postgres:latest
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: im_chat_app
+    networks:
+      - im-chat-network
+
+  im-chat-app-server:
+    container_name: im-chat-server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: on-failure
+    ports:
+      - "8081:8080"
+    depends_on:
+      - im-chat-app-postgres
+    env_file:
+      - .env
+    networks:
+      - im-chat-network
+
+networks:
+  im-chat-network:

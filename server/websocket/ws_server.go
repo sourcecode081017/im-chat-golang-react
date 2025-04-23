@@ -1,19 +1,25 @@
 package websocket
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/sourcecode081017/im-chat-golang-react/db/postgres"
+	"github.com/sourcecode081017/im-chat-golang-react/models"
 )
 
 type Ws struct {
 	wsHub *Hub
+	pgDb  *postgres.PgDb
 }
 
-func NewWs(hub *Hub) *Ws {
+func NewWs(hub *Hub, pgDb *postgres.PgDb) *Ws {
 	return &Ws{
 		wsHub: hub,
+		pgDb:  pgDb,
 	}
 }
 
@@ -24,6 +30,10 @@ func (ws *Ws) StartWebSocketServer() {
 	router.GET("/connect/:clientId", ws.serveWebsocket)
 	// route to create a new user channel
 	router.POST("/user/:userId/channel", ws.createUserChannel)
+	// route to create a new user
+	router.POST("/user", ws.createUser)
+	// route to fetch all users
+	router.GET("/users", ws.fetchAllUsers)
 	// Start the server on port 8080
 	if err := router.Run(":8080"); err != nil {
 		panic("Failed to start WebSocket server: " + err.Error())
@@ -42,6 +52,44 @@ func (ws *Ws) createUserChannel(c *gin.Context) {
 	})
 }
 
+func (ws *Ws) createUser(c *gin.Context) {
+	// Implement the logic to create a user
+	// For example, you can use the userId to create a new user in your database
+	var user models.User
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(400, gin.H{
+			"error": "Invalid input",
+		})
+		return
+	}
+	// Create the user in the database
+	user.UserUUID = uuid.New()
+	if err := ws.pgDb.CreateUser(c, &user); err != nil {
+		c.JSON(500, gin.H{
+			"error": "Failed to create user",
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"message": fmt.Sprintf("User %s created successfully", user.Username),
+	})
+}
+
+func (ws *Ws) fetchAllUsers(c *gin.Context) {
+	// Implement the logic to fetch all users
+	// For example, you can use the userId to fetch all users from your database
+	users, err := ws.pgDb.GetUsers(c)
+	if err != nil {
+		c.JSON(500, gin.H{
+			"error": "Failed to fetch users",
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"users": users,
+	})
+}
+
 // serveWebsocket handles the WebSocket connection
 func (ws *Ws) serveWebsocket(c *gin.Context) {
 	clientId := c.Param("clientId")
@@ -54,9 +102,6 @@ func (ws *Ws) serveWebsocket(c *gin.Context) {
 		log.Println("Error upgrading connection:", err)
 		return
 	}
-
-	// create a
-
 	// Create a new client
 	client := NewClient(clientId, conn, ws.wsHub)
 	client.hub.register <- client
