@@ -63,7 +63,7 @@ func (ws *Ws) createUser(c *gin.Context) {
 		return
 	}
 	// Create the user in the database
-	user.UserId = uuid.New()
+	user.UserUUID = uuid.New()
 	if err := ws.pgDb.CreateUser(c, &user); err != nil {
 		c.JSON(500, gin.H{
 			"error": "Failed to create user",
