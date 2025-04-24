@@ -34,22 +34,13 @@ func (ws *Ws) StartWebSocketServer() {
 	router.POST("/user", ws.createUser)
 	// route to fetch all users
 	router.GET("/users", ws.fetchAllUsers)
+
 	// Start the server on port 8080
 	if err := router.Run(":8080"); err != nil {
 		panic("Failed to start WebSocket server: " + err.Error())
 	}
 	// Log the server start
 	log.Println("WebSocket server started on :8080")
-}
-
-func (ws *Ws) createUserChannel(c *gin.Context) {
-	userId := c.Param("userId")
-	// Implement the logic to create a user channel
-	// For example, you can use the userId to create a new channel in your database
-	c.JSON(200, gin.H{
-		"message": "User channel created successfully",
-		"userId":  userId,
-	})
 }
 
 func (ws *Ws) createUser(c *gin.Context) {
@@ -72,6 +63,32 @@ func (ws *Ws) createUser(c *gin.Context) {
 	}
 	c.JSON(200, gin.H{
 		"message": fmt.Sprintf("User %s created successfully", user.Username),
+	})
+}
+
+func (ws *Ws) createUserChannel(c *gin.Context) {
+	userId := c.Param("userId")
+	channelName := c.Query("channelName")
+	if channelName == "" {
+		c.JSON(400, gin.H{
+			"error": "Channel name is required",
+		})
+		return
+	}
+	channel := &models.Channel{
+		ChannelUUID: uuid.New(),
+		ChannelName: channelName,
+		CreatedBy:   userId,
+	}
+	if err := ws.pgDb.CreateChannel(c, channel); err != nil {
+		c.JSON(500, gin.H{
+			"error": "Failed to create channel",
+		})
+		return
+	}
+	c.JSON(200, gin.H{
+		"message":   fmt.Sprintf("Channel %s created successfully", channelName),
+		"channelId": channel.ChannelUUID,
 	})
 }
 

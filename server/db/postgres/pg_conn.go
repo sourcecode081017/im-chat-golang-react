@@ -36,10 +36,10 @@ func NewPgDb(ctx context.Context) (*PgDb, error) {
 }
 
 func (pg *PgDb) RunMigrations(ctx context.Context) error {
-	if err := pg.Db.AutoMigrate(&models.User{}); err != nil {
+	if err := pg.Db.AutoMigrate(&models.User{}, &models.Channel{}); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
-	err := pg.Db.Exec("CREATE UNIQUE INDEX unique_email ON users (email) WHERE email IS NOT NULL;").Error
+	err := pg.Db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS unique_email ON users (email) WHERE email IS NOT NULL;").Error
 	if err != nil {
 		return fmt.Errorf("failed to create unique index on email: %w", err)
 	}

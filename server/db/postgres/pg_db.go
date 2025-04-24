@@ -28,3 +28,12 @@ func (pg *PgDb) GetUsers(ctx context.Context) ([]models.User, error) {
 	}
 	return users, nil
 }
+
+func (pg *PgDb) CreateChannel(ctx context.Context, channel *models.Channel) error {
+	// Insert a new channel into the database
+	err := pg.Db.Create(channel).Error
+	if err != nil {
+		return fmt.Errorf("failed to create channel: %w", err)
+	}
+	return nil
+}
