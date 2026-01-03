@@ -3,6 +3,7 @@ package websocket
 import (
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -34,6 +35,10 @@ func (ws *Ws) StartWebSocketServer() {
 	router.POST("/user", ws.createUser)
 	// route to fetch all users
 	router.GET("/users", ws.fetchAllUsers)
+	// route to fetch messages between two users
+	router.GET("/messages/:userId/:recipientId", ws.getMessages)
+	// health check route
+	router.GET("/health", ws.healthCheck)
 	// Start the server on port 8080
 	if err := router.Run(":8080"); err != nil {
 		panic("Failed to start WebSocket server: " + err.Error())
@@ -90,12 +95,48 @@ func (ws *Ws) fetchAllUsers(c *gin.Context) {
 	})
 }
 
+func (ws *Ws) healthCheck(c *gin.Context) {
+	c.JSON(200, gin.H{
+		"status": "UP",
+	})
+}
+
+func (ws *Ws) getMessages(c *gin.Context) {
+	userIdStr := c.Param("userId")
+	recipientIdStr := c.Param("recipientId")
+
+	userId, err := uuid.Parse(userIdStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid userId"})
+		return
+	}
+
+	recipientId, err := uuid.Parse(recipientIdStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid recipientId"})
+		return
+	}
+
+	messages, err := ws.pgDb.GetMessagesBetweenUsers(c, userId, recipientId)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch messages"})
+		return
+	}
+
+	c.JSON(200, gin.H{"messages": messages})
+}
+
 // serveWebsocket handles the WebSocket connection
 func (ws *Ws) serveWebsocket(c *gin.Context) {
 	clientId := c.Param("clientId")
 	upgrader := &websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			// Allow all origins during development
+			// TODO: Restrict to specific origins in production
+			return true
+		},
 	}
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -103,7 +144,7 @@ func (ws *Ws) serveWebsocket(c *gin.Context) {
 		return
 	}
 	// Create a new client
-	client := NewClient(clientId, conn, ws.wsHub)
+	client := NewClient(clientId, conn, ws.wsHub, ws.pgDb)
 	client.hub.register <- client
 	// Start the read and write pumps
 	go client.ReadPump()

@@ -7,11 +7,22 @@ import (
 	"gorm.io/gorm"
 )
 
+// Message represents the wire format for WebSocket communication
 type Message struct {
 	Type        string `json:"type"`
 	Content     string `json:"content"`
 	ChannelId   string `json:"channelId"`
 	RecipientId string `json:"recipientId"`
+	SenderId    string `json:"senderId,omitempty"` // Added for sender identification
+}
+
+// ChatMessage represents a persisted message in the database
+type ChatMessage struct {
+	gorm.Model
+	SenderID    uuid.UUID `json:"senderId" gorm:"type:uuid;not null;index"`
+	RecipientID uuid.UUID `json:"recipientId" gorm:"type:uuid;not null;index"`
+	Content     string    `json:"content" gorm:"type:text;not null"`
+	MessageType string    `json:"messageType" gorm:"type:varchar(50);default:'direct'"`
 }
 
 type Channel struct {

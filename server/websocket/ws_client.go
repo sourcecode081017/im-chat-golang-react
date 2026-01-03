@@ -1,10 +1,13 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/sourcecode081017/im-chat-golang-react/db/postgres"
 	"github.com/sourcecode081017/im-chat-golang-react/models"
 )
 
@@ -13,14 +16,16 @@ type Client struct {
 	conn *websocket.Conn
 	send chan []byte
 	hub  *Hub
+	pgDb *postgres.PgDb
 }
 
-func NewClient(id string, conn *websocket.Conn, hub *Hub) *Client {
+func NewClient(id string, conn *websocket.Conn, hub *Hub, pgDb *postgres.PgDb) *Client {
 	return &Client{
 		Id:   id,
 		conn: conn,
 		send: make(chan []byte),
 		hub:  hub,
+		pgDb: pgDb,
 	}
 }
 
@@ -37,6 +42,34 @@ func (c *Client) ReadPump() {
 				log.Printf("error: %v", err)
 			}
 			break
+		}
+
+		// Enrich message with sender information
+		msg.SenderId = c.Id
+
+		// Parse UUIDs for database storage
+		senderUUID, err := uuid.Parse(c.Id)
+		if err != nil {
+			log.Printf("invalid sender UUID: %v", err)
+			continue
+		}
+
+		recipientUUID, err := uuid.Parse(msg.RecipientId)
+		if err != nil {
+			log.Printf("invalid recipient UUID: %v", err)
+			continue
+		}
+
+		// Save to database
+		chatMessage := &models.ChatMessage{
+			SenderID:    senderUUID,
+			RecipientID: recipientUUID,
+			Content:     msg.Content,
+			MessageType: msg.Type,
+		}
+
+		if err := c.pgDb.SaveMessage(context.Background(), chatMessage); err != nil {
+			log.Printf("failed to save message: %v", err)
 		}
 
 		msgJSON, err := json.Marshal(msg)
