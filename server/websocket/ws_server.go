@@ -37,6 +37,12 @@ func (ws *Ws) StartWebSocketServer() {
 	router.GET("/users", ws.fetchAllUsers)
 	// route to fetch messages between two users
 	router.GET("/messages/:userId/:recipientId", ws.getMessages)
+	// route to create a channel
+	router.POST("/channel", ws.createChannel)
+	// route to get a channel by ID
+	router.GET("/channel/:channelId", ws.getChannel)
+	// route to get user's channels
+	router.GET("/user/:userId/channels", ws.getUserChannels)
 	// health check route
 	router.GET("/health", ws.healthCheck)
 	// Start the server on port 8080
@@ -93,6 +99,74 @@ func (ws *Ws) fetchAllUsers(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"users": users,
 	})
+}
+
+func (ws *Ws) createChannel(c *gin.Context) {
+	var channel models.Channel
+	if err := c.ShouldBindJSON(&channel); err != nil {
+		c.JSON(400, gin.H{
+			"error": "Invalid input",
+		})
+		return
+	}
+
+	// Validate that CreatedBy is provided
+	if channel.CreatedBy == uuid.Nil {
+		c.JSON(400, gin.H{
+			"error": "createdBy field is required",
+		})
+		return
+	}
+
+	// Create the channel in the database with a unique UUID
+	channel.ChannelUUID = uuid.New()
+	if err := ws.pgDb.CreateChannel(c, &channel); err != nil {
+		c.JSON(500, gin.H{
+			"error": fmt.Sprintf("Failed to create channel: %s", err.Error()),
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"message": fmt.Sprintf("Channel %s created successfully", channel.Name),
+		"channel": channel,
+	})
+}
+
+func (ws *Ws) getChannel(c *gin.Context) {
+	channelIdStr := c.Param("channelId")
+
+	channelId, err := uuid.Parse(channelIdStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid channelId"})
+		return
+	}
+
+	channel, err := ws.pgDb.GetChannelByUUID(c, channelId)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch channel"})
+		return
+	}
+
+	c.JSON(200, gin.H{"channel": channel})
+}
+
+func (ws *Ws) getUserChannels(c *gin.Context) {
+	userIdStr := c.Param("userId")
+
+	userId, err := uuid.Parse(userIdStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid userId"})
+		return
+	}
+
+	channels, err := ws.pgDb.GetUserChannels(c, userId)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to fetch user channels"})
+		return
+	}
+
+	c.JSON(200, gin.H{"channels": channels})
 }
 
 func (ws *Ws) healthCheck(c *gin.Context) {

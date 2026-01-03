@@ -1,8 +1,6 @@
 package models
 
 import (
-	"time"
-
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -26,11 +24,12 @@ type ChatMessage struct {
 }
 
 type Channel struct {
-	Id          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
-	Subscribers []User    `json:"subscribers"`
+	gorm.Model
+	ChannelUUID uuid.UUID `json:"channelId" gorm:"type:uuid;unique;not null;index"`
+	Name        string    `json:"name" gorm:"type:varchar(255);not null"`
+	Description string    `json:"description" gorm:"type:text"`
+	CreatedBy   uuid.UUID `json:"createdBy" gorm:"type:uuid;not null"`
+	Subscribers []User    `json:"subscribers" gorm:"many2many:channel_subscribers;"`
 }
 type User struct {
 	gorm.Model

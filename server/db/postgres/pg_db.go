@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sourcecode081017/im-chat-golang-react/models"
+	"gorm.io/gorm"
 )
 
 func (pg *PgDb) CreateUser(ctx context.Context, user *models.User) error {
@@ -57,4 +58,56 @@ func (pg *PgDb) GetMessagesBetweenUsers(ctx context.Context, userId1, userId2 uu
 		return nil, fmt.Errorf("failed to fetch messages: %w", err)
 	}
 	return messages, nil
+}
+
+func (pg *PgDb) CreateChannel(ctx context.Context, channel *models.Channel) error {
+	// Use a transaction to ensure atomicity
+	return pg.Db.Transaction(func(tx *gorm.DB) error {
+		// First, get the creator user by UUID
+		var creator models.User
+		if err := tx.Where("user_uuid = ?", channel.CreatedBy).First(&creator).Error; err != nil {
+			return fmt.Errorf("failed to find creator user: %w", err)
+		}
+
+		// Create the channel
+		if err := tx.Create(channel).Error; err != nil {
+			return fmt.Errorf("failed to create channel: %w", err)
+		}
+
+		// Add the creator as a subscriber
+		if err := tx.Model(channel).Association("Subscribers").Append(&creator); err != nil {
+			return fmt.Errorf("failed to add creator as subscriber: %w", err)
+		}
+
+		return nil
+	})
+}
+
+func (pg *PgDb) GetChannelByUUID(ctx context.Context, channelUUID uuid.UUID) (*models.Channel, error) {
+	var channel models.Channel
+	err := pg.Db.Preload("Subscribers").Where("channel_uuid = ?", channelUUID).First(&channel).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch channel: %w", err)
+	}
+	return &channel, nil
+}
+
+func (pg *PgDb) GetUserChannels(ctx context.Context, userUUID uuid.UUID) ([]models.Channel, error) {
+	var user models.User
+	err := pg.Db.Where("user_uuid = ?", userUUID).First(&user).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user: %w", err)
+	}
+
+	// Get all channels where the user is a subscriber
+	var channels []models.Channel
+	err = pg.Db.Preload("Subscribers").
+		Joins("JOIN channel_subscribers ON channel_subscribers.channel_id = channels.id").
+		Where("channel_subscribers.user_id = ?", user.ID).
+		Find(&channels).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user's channels: %w", err)
+	}
+
+	return channels, nil
 }
